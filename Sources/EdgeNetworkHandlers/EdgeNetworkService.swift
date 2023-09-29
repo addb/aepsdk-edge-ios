@@ -14,13 +14,11 @@ import AEPCore
 import AEPServices
 import Foundation
 
-/// ExperienceEdge Request Types:
+/// Edge Network request type:
 ///     - interact - makes request and expects a response
-///     - collect - makes request without expecting a response
 ///     - consent - sets user consent and expects a response
-enum ExperienceEdgeRequestType: String {
+enum EdgeRequestType: String {
     case interact
-    case collect
     case consent = "privacy/set-consent"
 }
 
@@ -40,7 +38,7 @@ enum HttpResponseCodes: Int {
 class EdgeNetworkService {
     private let SELF_TAG: String = "EdgeNetworkService"
     private let DEFAULT_GENERIC_ERROR_MESSAGE = "Request to Experience Edge failed with an unknown exception"
-    private let DEFAULT_NAMESPACE = "global"
+    private let DEFAULT_GENERIC_ERROR_TITLE = "Unexpected Error"
     private let recoverableNetworkErrorCodes: [Int] = [HttpResponseCodes.clientTimeout.rawValue,
                                                        HttpResponseCodes.tooManyRequests.rawValue,
                                                        HttpResponseCodes.badGateway.rawValue,
@@ -50,20 +48,21 @@ class EdgeNetworkService {
     private var defaultHeaders = [EdgeConstants.NetworkKeys.HEADER_KEY_ACCEPT: EdgeConstants.NetworkKeys.HEADER_VALUE_APPLICATION_JSON,
                                   EdgeConstants.NetworkKeys.HEADER_KEY_CONTENT_TYPE: EdgeConstants.NetworkKeys.HEADER_VALUE_APPLICATION_JSON]
 
-    /// Builds the URL required for connections to Experience Edge with the provided `ExperienceEdgeRequestType`
+    /// Builds the URL required for connections to Experience Edge
     /// - Parameters:
-    ///   - requestType: see `ExperienceEdgeRequestType`
+    ///   - endpoint: the endpoint for this URL
     ///   - configId: Edge configuration identifier
     ///   - requestId: batch request identifier
-    ///   - edgeEndpoint: the endpoint for this URL to be based off of
     /// - Returns: built URL or nil on error
-    func buildUrl(requestType: ExperienceEdgeRequestType, configId: String, requestId: String, edgeEndpoint: EdgeEndpoint) -> URL? {
-        guard var url = URL(string: edgeEndpoint.endpointUrl) else { return nil }
-        url.appendPathComponent(requestType.rawValue)
-
+    func buildUrl(endpoint: EdgeEndpoint, configId: String, requestId: String) -> URL? {
+        guard let url = endpoint.url else { return nil }
         guard var urlComponents = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
-        urlComponents.queryItems = [URLQueryItem(name: EdgeConstants.NetworkKeys.REQUEST_PARAM_CONFIG_ID, value: configId),
-                                    URLQueryItem(name: EdgeConstants.NetworkKeys.REQUEST_PARAM_REQUEST_ID, value: requestId)]
+        urlComponents.queryItems = [
+            URLQueryItem(name: EdgeConstants.NetworkKeys.REQUEST_PARAM_CONFIG_ID,
+                         value: configId),
+            URLQueryItem(name: EdgeConstants.NetworkKeys.REQUEST_PARAM_REQUEST_ID,
+                         value: requestId)
+        ]
 
         return urlComponents.url
     }
@@ -183,20 +182,19 @@ class EdgeNetworkService {
 
         switch responseCode {
         case HttpResponseCodes.ok.rawValue:
-            Log.debug(label: EdgeConstants.LOG_TAG, "\(SELF_TAG) - Interact connection to Experience Edge was successful.")
+            Log.debug(label: EdgeConstants.LOG_TAG, "\(SELF_TAG) - Connection to Experience Edge was successful.")
             self.handleContent(connection: connection,
                                streaming: streaming,
                                responseCallback: responseCallback)
             responseCallback.onComplete()
             completion(true, nil) // successful request, return true
         case HttpResponseCodes.noContent.rawValue:
-            // Successful collect requests do not return content
-            Log.debug(label: EdgeConstants.LOG_TAG, "\(SELF_TAG) - Collect connection to Experience Edge was successful.")
+            Log.debug(label: EdgeConstants.LOG_TAG, "\(SELF_TAG) - Connection to Experience Edge was successful, no content returned.")
             responseCallback.onComplete()
             completion(true, nil) // successful request, return true
         case HttpResponseCodes.multiStatus.rawValue:
             Log.debug(label: EdgeConstants.LOG_TAG,
-                      "\(SELF_TAG) - Connection to Experience Edge was successful but encountered non-fatal errors/warnings. \(responseCode)")
+                      "\(SELF_TAG) - Connection to Experience Edge was successful, but encountered non-fatal errors/warnings. \(responseCode)")
             self.handleContent(connection: connection,
                                streaming: streaming,
                                responseCallback: responseCallback)
@@ -261,9 +259,9 @@ class EdgeNetworkService {
         var unwrappedErrorMessage = plainTextErrorMessage ?? DEFAULT_GENERIC_ERROR_MESSAGE
         unwrappedErrorMessage = unwrappedErrorMessage.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        let errorDictionary = [EdgeConstants.JsonKeys.Response.Error.MESSAGE: unwrappedErrorMessage,
-                               EdgeConstants.JsonKeys.Response.Error.NAMESPACE: DEFAULT_NAMESPACE]
-        guard let json = try? JSONSerialization.data(withJSONObject: errorDictionary, options: []) else {
+        let eventError = EdgeEventError(title: DEFAULT_GENERIC_ERROR_TITLE, detail: unwrappedErrorMessage)
+
+        guard let json = try? JSONEncoder().encode(eventError) else {
             Log.debug(label: EdgeConstants.LOG_TAG, "\(SELF_TAG) - Failed to serialize the error message.")
             return nil
         }

@@ -15,12 +15,16 @@ import XCTest
 
 @testable import AEPEdge
 
+// swiftlint:disable type_body_length
 class EdgeNetworkServiceTests: XCTestCase {
 
     private var mockNetworking = MockNetworking()
     private var mockResponseCallback = MockResponseCallback()
     private var networkService = EdgeNetworkService()
-    private let edgeHitPayload = ExperienceEventsEdgeHit(edgeEndpoint: .production, configId: "configIdExample", request: EdgeRequest(meta: nil, xdm: nil, events: [["test": "data"]])).getPayload()
+    private let edgeHitPayload = ExperienceEventsEdgeHit(endpoint: EdgeEndpoint(requestType: EdgeRequestType.interact,
+                                                                                environmentType: .production),
+                                                         configId: "configIdExample",
+                                                         request: EdgeRequest(meta: nil, xdm: nil, events: [["test": "data"]])).getPayload()
     private let url = URL(string: "https://test.com")! // swiftlint:disable:this force_unwrapping
     private let defaultNetworkingHeaders: [String] = ["User-Agent", "Accept-Language"]
 
@@ -224,8 +228,8 @@ class EdgeNetworkServiceTests: XCTestCase {
                                     XCTAssertTrue(self.mockResponseCallback.onErrorCalled)
                                     XCTAssertEqual(1, self.mockResponseCallback.onErrorJsonError.capacity)
                                     let errorJson = self.mockResponseCallback.onErrorJsonError[0]
-                                    XCTAssertTrue(errorJson.contains("\"namespace\":\"global\""))
-                                    XCTAssertTrue(errorJson.contains("\"message\":\"service unavailable\""))
+                                    XCTAssertTrue(errorJson.contains("\"title\":\"Unexpected Error\""))
+                                    XCTAssertTrue(errorJson.contains("\"detail\":\"service unavailable\""))
                                     expectation.fulfill()
                                  })
 
@@ -253,8 +257,8 @@ class EdgeNetworkServiceTests: XCTestCase {
                                     XCTAssertTrue(self.mockResponseCallback.onErrorCalled)
                                     XCTAssertEqual(1, self.mockResponseCallback.onErrorJsonError.capacity)
                                     let errorJson = self.mockResponseCallback.onErrorJsonError[0]
-                                    XCTAssertTrue(errorJson.contains("\"namespace\":\"global\""))
-                                    XCTAssertTrue(errorJson.contains("\"message\":\"Request to Experience Edge failed with an unknown exception\""))
+                                    XCTAssertTrue(errorJson.contains("\"title\":\"Unexpected Error\""))
+                                    XCTAssertTrue(errorJson.contains("\"detail\":\"Request to Experience Edge failed with an unknown exception\""))
                                     expectation.fulfill()
                                  })
 
@@ -284,8 +288,8 @@ class EdgeNetworkServiceTests: XCTestCase {
                                     XCTAssertTrue(self.mockResponseCallback.onErrorCalled)
                                     XCTAssertEqual(1, self.mockResponseCallback.onErrorJsonError.capacity)
                                     let errorJson = self.mockResponseCallback.onErrorJsonError[0]
-                                    XCTAssertTrue(errorJson.contains("\"namespace\":\"global\""))
-                                    XCTAssertTrue(errorJson.contains("\"message\":\"Internal Server Error\""))
+                                    XCTAssertTrue(errorJson.contains("\"title\":\"Unexpected Error\""))
+                                    XCTAssertTrue(errorJson.contains("\"detail\":\"Internal Server Error\""))
                                     expectation.fulfill()
                                  })
 

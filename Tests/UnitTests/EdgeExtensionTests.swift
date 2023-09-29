@@ -22,13 +22,21 @@ class EdgeExtensionTests: XCTestCase {
     var mockDataQueue: MockDataQueue!
     var mockHitProcessor: MockHitProcessor!
 
+    #if os(iOS)
+    private let EXPECTED_BASE_PATH = "https://ns.adobe.com/experience/mobilesdk/ios"
+    #elseif os(tvOS)
+    private let EXPECTED_BASE_PATH = "https://ns.adobe.com/experience/mobilesdk/tvos"
+    #endif
+
     override func setUp() {
+        ServiceProvider.shared.namedKeyValueService = MockDataStore()
         mockRuntime = TestableExtensionRuntime()
         mockDataQueue = MockDataQueue()
         mockHitProcessor = MockHitProcessor()
 
         edge = Edge(runtime: mockRuntime)
-        edge.state = EdgeState(hitQueue: PersistentHitQueue(dataQueue: mockDataQueue, processor: mockHitProcessor))
+        edge.state = EdgeState(hitQueue: PersistentHitQueue(dataQueue: mockDataQueue, processor: mockHitProcessor),
+                               edgeProperties: EdgeProperties())
         edge.onRegistered()
     }
 
@@ -90,6 +98,29 @@ class EdgeExtensionTests: XCTestCase {
 
         // verify
         XCTAssertEqual(ConsentStatus.yes, edge.state?.currentCollectConsent)
+    }
+
+    func testBootup_hubSharedState_setsImplementationDetails() {
+        let hubSharedState: [String: Any] = [
+            "wrapper": ["type": "R"],
+            "version": "3.0.0"
+        ]
+        mockRuntime.simulateSharedState(for: EdgeConstants.SharedState.Hub.SHARED_OWNER_NAME, data: (hubSharedState, .set))
+
+        // dummy event to invoke readyForEvent
+        _ = edge.readyForEvent(Event(name: "Dummy event", type: EventType.custom, source: EventSource.none, data: nil))
+
+        // verify
+        let actualDetails = edge.state?.implementationDetails ?? [:]
+        XCTAssertTrue(!actualDetails.isEmpty)
+
+        let expectedDetails: [String: Any] = [
+            "version": "3.0.0+\(EdgeConstants.EXTENSION_VERSION)",
+            "environment": "app",
+            "name": "\(EXPECTED_BASE_PATH)/reactnative"
+        ]
+
+        XCTAssertTrue(expectedDetails == actualDetails)
     }
 
     // MARK: Consent update request

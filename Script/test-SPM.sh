@@ -20,7 +20,7 @@ let package = Package(
     name: \"TestProject\",
     defaultLocalization: \"en-US\",
     platforms: [
-        .iOS(.v10)
+        .iOS(.v11), .tvOS(.v11)
     ],
     products: [
         .library(
@@ -48,6 +48,11 @@ let package = Package(
 " >Package.swift
 
 swift package update
+swift package resolve
+
+# This is nececery to avoid internal PIF error
+swift package dump-pif > /dev/null
+(xcodebuild clean -scheme TestProject -destination 'generic/platform=iOS' > /dev/null) || :
 
 # Archive for generic iOS device
 echo '############# Archive for generic iOS device ###############'
@@ -57,13 +62,21 @@ xcodebuild archive -scheme TestProject -destination 'generic/platform=iOS'
 echo '############# Build for generic iOS device ###############'
 xcodebuild build -scheme TestProject -destination 'generic/platform=iOS'
 
-# Build for i386 simulator
-echo '############# Build for i386 simulator ###############'
-xcodebuild build -scheme TestProject -destination 'generic/platform=iOS Simulator' ARCHS=i386
+# Build for x86_64 simulator
+echo '############# Build for x86_64 iOS simulator ###############'
+xcodebuild build -scheme TestProject -destination 'generic/platform=iOS Simulator' ARCHS=x86_64
+
+# Archive for generic tvOS device
+echo '############# Archive for generic tvOS device ###############'
+xcodebuild archive -scheme TestProject -destination 'generic/platform=tvOS'
+
+# Build for generic tvOS device
+echo '############# Build for generic tvOS device ###############'
+xcodebuild build -scheme TestProject -destination 'generic/platform=tvOS'
 
 # Build for x86_64 simulator
-echo '############# Build for x86_64 simulator ###############'
-xcodebuild build -scheme TestProject -destination 'generic/platform=iOS Simulator' ARCHS=x86_64
+echo '############# Build for x86_64 tvOS simulator ###############'
+xcodebuild build -scheme TestProject -destination 'generic/platform=tvOS Simulator' ARCHS=x86_64
 
 # Clean up.
 cd ../
