@@ -51,7 +51,7 @@ on:
           - 'EmptyString'
           - 'Invalid'
           - 'None'
-          
+
 
 run-name: ${{ inputs.id }}
 
@@ -85,7 +85,7 @@ jobs:
 
     - name: Execute Edge Network integration tests
       id: execute-integration-tests
-      run: make test-integration-upstream TAGS_MOBILE_PROPERTY_ID=${{ github.event.inputs.tags-mobile-property-id }} EDGE_LOCATION_HINT=${{ github.event.inputs.edge-location-hint }}
+      run: make upstream-integration-test-ios TAGS_MOBILE_PROPERTY_ID=${{ github.event.inputs.tags-mobile-property-id }} EDGE_LOCATION_HINT=${{ github.event.inputs.edge-location-hint }}
 
     # Potential workflow solutions on job failure
     # All workflow setup step failures give exit code 2, with 3 as fallback
@@ -97,7 +97,7 @@ jobs:
         BRANCH: ${{ github.event.inputs.branch }}
       run: |
         echo "Job used branch: $BRANCH. Please make sure this is the branch to run off of."
-        
+
         EXIT_CODE=3
 
         if [[ "${{ steps.job-run-identifier.conclusion }}" == "failure" ]]; then
@@ -117,8 +117,8 @@ jobs:
         fi
 
         echo "EXIT_CODE=$EXIT_CODE" >> $GITHUB_OUTPUT
-    
-    # Dynamic step name in JSON format, examples on job: 
+
+    # Dynamic step name in JSON format, examples on job:
     # - During job run (before this step): {"exitCode":${{ steps.on-failure.outputs.EXIT_CODE || 0 }}}
     # - Failure: {"exitCode":1}
     # - Success: {"exitCode":0}
@@ -128,6 +128,3 @@ jobs:
       run: |
         echo 'exit code in the body: ${{ steps.on-failure.outputs.EXIT_CODE }}'
         echo 'on-failure outputs: ${{ toJson(steps.on-failure.outputs) }}'
-        
-    
-
